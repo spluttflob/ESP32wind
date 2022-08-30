@@ -1,0 +1,7 @@
+include
+lib
+test
+.pio
+.vscode
+mycerts.h
+*.pdf
