@@ -10,6 +10,7 @@
 #include "mycerts.h"
 #include "shares.h"
 #include "ESP32Ping.h"
+#include "node_red_plot.h"
 
 
 /// The IP address (or possibly URL) of your MQTT broker
@@ -23,6 +24,9 @@ WiFiClient espClient;
 
 // The MQTT client which publishes data and subscribes to topics
 PubSubClient client(espClient);
+
+/// The size of a buffer used internally in the MQTT client
+#define MQTT_BUF_SIZE 10000
 
 
 /** @brief   Get the WiFi running so we can talk to the MQTT broker
@@ -140,12 +144,21 @@ void reconnect(PubSubClient& client)
 void mqtt_task (void* p_params)
 {
     uint8_t time_counter = 0;       // Counts seconds between publishing runs
-    char a_string[64];              // Assemble an MQTT message here
+    // char a_string[64];              // Assemble an MQTT message here
 
     Serial << "Setting up MQTT server and callback...";
+    client.setBufferSize(MQTT_BUF_SIZE);
     client.setServer (mqtt_server, 1883);
     client.setCallback (callback);
     Serial << "done." << endl;
+
+
+    const uint16_t ARRAY_SIZE = 10;
+    uint32_t times[ARRAY_SIZE];
+    float sines[ARRAY_SIZE];
+    float cosines[ARRAY_SIZE];
+    const char* labels[2] = {"Sines", "Cosines"};
+    NodeRedPlot<2, ARRAY_SIZE> plotzy("travisty/energy/test", labels);
 
     vTaskDelay (1000);
 
@@ -163,17 +176,30 @@ void mqtt_task (void* p_params)
             reconnect (client);
         }
 
-        // Send that data...once a minute?
-        if (++time_counter > 60)
+        for (uint16_t count = 0; count < ARRAY_SIZE; count++)
         {
-            time_counter = 0;
+            float sineful = sin((float)count / 7);
+            float cosful = cos((float)count / 7);
+            times[count] = count;
+            sines[count] = sineful;
+            cosines[count] = cosful;
 
-            sprintf (a_string, "%.1f,%.1f", wind_speed.get(), wind_dir.get());
-            client.publish("travisty/weather/test", a_string);
+            float blah[2];
+            blah[0] = sineful;
+            blah[1] = cosful;
+            plotzy.add_data(count, blah);
+            plotzy.mqtt_send(client);
 
-            sprintf (a_string, "%d", check_RSSI (8));
-            client.publish("travisty/network/rssi", a_string);
+            vTaskDelay(5000);
         }
+        plotzy.clear();
+
+        //     sprintf (a_string, "%.1f,%.1f", wind_speed.get(), wind_dir.get());
+        //     client.publish("travisty/weather/test", a_string);
+
+        //     sprintf (a_string, "%d", check_RSSI (8));
+        //     client.publish("travisty/network/rssi", a_string);
+        // }
 
         vTaskDelay (1000);
     }
