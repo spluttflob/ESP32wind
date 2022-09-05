@@ -153,7 +153,7 @@ void mqtt_task (void* p_params)
     Serial << "done." << endl;
 
 
-    const uint16_t ARRAY_SIZE = 10;
+    const uint16_t ARRAY_SIZE = 100;
     uint32_t times[ARRAY_SIZE];
     float sines[ARRAY_SIZE];
     float cosines[ARRAY_SIZE];
